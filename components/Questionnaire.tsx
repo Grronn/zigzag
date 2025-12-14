@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { TravelPreferences } from '../App';
-import { Compass, DollarSign, Calendar, Heart } from 'lucide-react';
+import { Compass, DollarSign, Calendar, Heart, MapPin } from 'lucide-react';
 
 interface QuestionnaireProps {
+  city: string;
   onComplete: (preferences: TravelPreferences) => void;
 }
 
-export function Questionnaire({ onComplete }: QuestionnaireProps) {
+export function Questionnaire({ city, onComplete }: QuestionnaireProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [travelStyle, setTravelStyle] = useState('');
   const [budget, setBudget] = useState('');
@@ -64,8 +65,8 @@ export function Questionnaire({ onComplete }: QuestionnaireProps) {
 
   const handleOptionSelect = (value: string) => {
     if (currentQuestion.multiple) {
-      setInterests(prev => 
-        prev.includes(value) 
+      setInterests(prev =>
+        prev.includes(value)
           ? prev.filter(i => i !== value)
           : [...prev, value]
       );
@@ -118,6 +119,10 @@ export function Questionnaire({ onComplete }: QuestionnaireProps) {
   return (
     <div className="min-h-screen flex flex-col p-6 md:p-12">
       <div className="mb-8 md:mb-12">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-4">
+          <MapPin className="w-4 h-4" />
+          {city}
+        </div>
         <h1 className="mb-2">Спланируйте идеальное путешествие</h1>
         <p className="text-gray-600">Расскажите нам о ваших предпочтениях, и мы создадим персональный маршрут для вас</p>
       </div>
@@ -128,9 +133,8 @@ export function Questionnaire({ onComplete }: QuestionnaireProps) {
           {questions.map((_, index) => (
             <div
               key={index}
-              className={`h-2 flex-1 rounded-full transition-colors ${
-                index <= currentStep ? 'bg-blue-600' : 'bg-gray-200'
-              }`}
+              className={`h-2 flex-1 rounded-full transition-colors ${index <= currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
             />
           ))}
         </div>
@@ -151,18 +155,17 @@ export function Questionnaire({ onComplete }: QuestionnaireProps) {
             const isSelected = currentQuestion.multiple
               ? interests.includes(option.value)
               : (currentQuestion.id === 'travelStyle' && travelStyle === option.value) ||
-                (currentQuestion.id === 'budget' && budget === option.value) ||
-                (currentQuestion.id === 'duration' && duration === option.value);
+              (currentQuestion.id === 'budget' && budget === option.value) ||
+              (currentQuestion.id === 'duration' && duration === option.value);
 
             return (
               <button
                 key={option.value}
                 onClick={() => handleOptionSelect(option.value)}
-                className={`w-full p-4 md:p-6 rounded-xl border-2 transition-all text-left ${
-                  isSelected
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
+                className={`w-full p-4 md:p-6 rounded-xl border-2 transition-all text-left ${isSelected
+                  ? 'border-blue-600 bg-blue-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-start justify-between">
                   <div>

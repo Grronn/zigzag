@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Questionnaire } from './components/Questionnaire';
 import { RouteInfo } from './components/RouteInfo';
 import { TravelMap } from './components/TravelMap';
-import { MapIcon, List } from 'lucide-react';
+import { MainPage } from './components/MainPage';
+import { MapIcon, List, Loader2 } from 'lucide-react';
 
 export interface TravelPreferences {
   travelStyle: string;
@@ -20,17 +21,36 @@ export interface RoutePoint {
   duration: string;
 }
 
+type ViewState = 'main' | 'questionnaire' | 'result';
+
 export default function App() {
+  const [view, setView] = useState<ViewState>('main');
+  const [city, setCity] = useState('');
   const [preferences, setPreferences] = useState<TravelPreferences | null>(null);
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
   const [activeTab, setActiveTab] = useState<'content' | 'map'>('content');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleQuestionnaireComplete = (prefs: TravelPreferences) => {
+  const handleStart = (selectedCity: string) => {
+    setCity(selectedCity);
+    setView('questionnaire');
+  };
+
+  const handleQuestionnaireComplete = async (prefs: TravelPreferences) => {
+    setIsSubmitting(true);
+
+    // Mock backend submission
+    // Sending { city, ...prefs } to backend...
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
     setPreferences(prefs);
-    
-    // Generate route based on preferences
+
+    // Mock receiving success and ID, then generating route
     const generatedRoute = generateRoute(prefs);
     setRoutePoints(generatedRoute);
+
+    setIsSubmitting(false);
+    setView('result');
   };
 
   const generateRoute = (prefs: TravelPreferences): RoutePoint[] => {
@@ -56,28 +76,40 @@ export default function App() {
     return routes[prefs.travelStyle] || routes.cultural;
   };
 
+  if (view === 'main') {
+    return <MainPage onStart={handleStart} />;
+  }
+
+  if (isSubmitting) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-white">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+        <h2 className="text-xl font-semibold text-gray-900">Creating your route...</h2>
+        <p className="text-gray-500">Please wait while we analyze your preferences</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row h-screen">
       {/* Mobile Tab Navigation */}
       <div className="md:hidden flex border-b border-gray-200 bg-white">
         <button
           onClick={() => setActiveTab('content')}
-          className={`flex-1 flex items-center justify-center gap-2 py-4 transition-colors ${
-            activeTab === 'content'
+          className={`flex-1 flex items-center justify-center gap-2 py-4 transition-colors ${activeTab === 'content'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500'
-          }`}
+            }`}
         >
           <List className="w-5 h-5" />
-          <span>{!preferences ? 'Анкета' : 'Маршрут'}</span>
+          <span>{view === 'questionnaire' ? 'Анкета' : 'Маршрут'}</span>
         </button>
         <button
           onClick={() => setActiveTab('map')}
-          className={`flex-1 flex items-center justify-center gap-2 py-4 transition-colors ${
-            activeTab === 'map'
+          className={`flex-1 flex items-center justify-center gap-2 py-4 transition-colors ${activeTab === 'map'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500'
-          }`}
+            }`}
         >
           <MapIcon className="w-5 h-5" />
           <span>Карта</span>
@@ -85,20 +117,18 @@ export default function App() {
       </div>
 
       {/* Left Panel - Questionnaire or Route Info */}
-      <div className={`w-full md:w-1/2 bg-white overflow-y-auto ${
-        activeTab === 'content' ? 'block' : 'hidden md:block'
-      }`}>
-        {!preferences ? (
-          <Questionnaire onComplete={handleQuestionnaireComplete} />
+      <div className={`w-full md:w-1/2 bg-white overflow-y-auto ${activeTab === 'content' ? 'block' : 'hidden md:block'
+        }`}>
+        {view === 'questionnaire' ? (
+          <Questionnaire city={city} onComplete={handleQuestionnaireComplete} />
         ) : (
-          <RouteInfo preferences={preferences} routePoints={routePoints} />
+          preferences && <RouteInfo preferences={preferences} routePoints={routePoints} />
         )}
       </div>
 
       {/* Right Panel - Map */}
-      <div className={`w-full md:w-1/2 bg-gray-100 ${
-        activeTab === 'map' ? 'block' : 'hidden md:block'
-      } h-[calc(100vh-57px)] md:h-screen`}>
+      <div className={`w-full md:w-1/2 bg-gray-100 ${activeTab === 'map' ? 'block' : 'hidden md:block'
+        } h-[calc(100vh-57px)] md:h-screen`}>
         <TravelMap routePoints={routePoints} />
       </div>
     </div>
