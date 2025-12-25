@@ -6,19 +6,32 @@ import { MainPage } from './components/MainPage';
 import { MapIcon, List, Loader2 } from 'lucide-react';
 
 export interface TravelPreferences {
-  travelStyle: string;
-  budget: string;
-  duration: string;
+  city: string;
+  name_of_route: string;
+  pace_of_route?: string;
+  quantity_of_days: number;
+  times: string[];
   interests: string[];
+  format_of_movement: string;
 }
 
 export interface RoutePoint {
   id: string;
+  number_day: number;
+  route_id: number;
+  order: number;
+  coordinates: string;
   name: string;
-  lat: number;
-  lng: number;
   description: string;
-  duration: string;
+  time: string;
+  address: string;
+}
+
+export interface RouteData {
+  id: number;
+  name: string;
+  city: string;
+  places: RoutePoint[];
 }
 
 type ViewState = 'main' | 'questionnaire' | 'result';
@@ -26,13 +39,15 @@ type ViewState = 'main' | 'questionnaire' | 'result';
 export default function App() {
   const [view, setView] = useState<ViewState>('main');
   const [city, setCity] = useState('');
+  const [routeName, setRouteName] = useState('');
   const [preferences, setPreferences] = useState<TravelPreferences | null>(null);
-  const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
+  const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [activeTab, setActiveTab] = useState<'content' | 'map'>('content');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleStart = (selectedCity: string) => {
+  const handleStart = (selectedCity: string, routeName: string) => {
     setCity(selectedCity);
+    setRouteName(routeName);
     setView('questionnaire');
   };
 
@@ -47,33 +62,153 @@ export default function App() {
 
     // Mock receiving success and ID, then generating route
     const generatedRoute = generateRoute(prefs);
-    setRoutePoints(generatedRoute);
+    setRouteData(generatedRoute);
 
     setIsSubmitting(false);
     setView('result');
   };
 
-  const generateRoute = (prefs: TravelPreferences): RoutePoint[] => {
-    // Mock route generation based on preferences
-    const routes: Record<string, RoutePoint[]> = {
-      adventure: [
-        { id: '1', name: 'Базовый лагерь в горах', lat: 46.8182, lng: 8.2275, description: 'Отправная точка для горных приключений', duration: '2 дня' },
-        { id: '2', name: 'Альпийская тропа', lat: 46.5197, lng: 8.7892, description: 'Сложный пеший маршрут', duration: '3 дня' },
-        { id: '3', name: 'Вершина', lat: 46.0207, lng: 8.9511, description: 'Финальная точка с панорамными видами', duration: '2 дня' }
-      ],
-      relaxation: [
-        { id: '1', name: 'Прибрежный курорт', lat: 43.7384, lng: 7.4246, description: 'Роскошный курорт на берегу моря', duration: '3 дня' },
-        { id: '2', name: 'СПА-центр', lat: 43.6048, lng: 7.0717, description: 'Центр здоровья и релаксации', duration: '2 дня' },
-        { id: '3', name: 'Винодельческое поместье', lat: 43.4831, lng: 6.8377, description: 'Дегустация вин и сельская местность', duration: '2 дня' }
-      ],
-      cultural: [
-        { id: '1', name: 'Исторический центр города', lat: 48.8566, lng: 2.3522, description: 'Музеи и исторические достопримечательности', duration: '2 дня' },
-        { id: '2', name: 'Художественный квартал', lat: 48.8606, lng: 2.3376, description: 'Галереи и культурные места', duration: '2 дня' },
-        { id: '3', name: 'Древние достопримечательности', lat: 48.8529, lng: 2.3499, description: 'Тур по архитектурному наследию', duration: '3 дня' }
-      ]
+  const generateRoute = (prefs: TravelPreferences): RouteData => {
+    // Mock server response data in the exact format from the backend
+    // This simulates what we would receive from the backend API
+
+    // Determine route type based on city and interests
+    const isMoscow = prefs.city.toLowerCase().includes('moscow');
+    const isPetersburg = prefs.city.toLowerCase().includes('peterburg');
+    const hasCulture = prefs.interests.includes('history') || prefs.interests.includes('architecture') || prefs.interests.includes('museums');
+
+    // Mock route data in the exact format from the backend
+    const mockRoutes: Record<string, RouteData> = {
+      'mystic-petersburg': {
+        id: 2,
+        name: "Мистический Питер",
+        city: "Санкт-Петербург",
+        places: [
+          {
+            id: '1',
+            number_day: 1,
+            route_id: 2,
+            order: 1,
+            coordinates: '59.944365, 30.347517',
+            name: 'Дом Бака (Дворы)',
+            description: 'Величественный дом-колодец с открытыми галереями и стеклянным переходом, погружающий в атмосферу старого Петербурга. Идеальное начало мистического маршрута, где можно почувствовать дух доходных домов.',
+            time: '10:00 - 10:45',
+            address: 'Россия, Санкт-Питербург, Памятник коту Елисею и кошке Василисе, Дом Бака (Дворы)'
+          },
+          {
+            id: '2',
+            number_day: 1,
+            route_id: 2,
+            order: 2,
+            coordinates: '59.936647, 30.339665',
+            name: 'Памятник коту Елисею и кошке Василисе',
+            description: 'Забавные и милые памятники котам на карнизах домов, связанные с городскими легендами. Считается, что если бросить монетку и попасть, желание исполнится. Рядом можно найти уютное кафе для кофе-паузы.',
+            time: '11:15 - 12:00',
+            address: 'Россия, Санкт-Питербург, Памятник коту Елисею и кошке Василисе'
+          },
+          {
+            id: '3',
+            number_day: 1,
+            route_id: 2,
+            order: 3,
+            coordinates: '59.934283, 30.332266',
+            name: 'Книжный магазин "Все свободны"',
+            description: 'Уютный книжный магазин с атмосферой старого Петербурга. Здесь можно найти редкие издания и книги о городе. Идеальное место для любителей чтения и истории.',
+            time: '12:30 - 13:15',
+            address: 'Россия, Санкт-Питербург, Книжный магазин "Все свободны"'
+          },
+          {
+            id: '4',
+            number_day: 2,
+            route_id: 2,
+            order: 1,
+            coordinates: '59.945568, 30.337845',
+            name: 'Кафе "Бродячая собака"',
+            description: 'Легендарное кафе, где собирались поэты и художники Серебряного века. Сохранилась атмосфера начала 20 века. Отличное место для обеда и знакомства с культурой Петербурга.',
+            time: '11:00 - 12:30',
+            address: 'Россия, Санкт-Питербург, Кафе "Бродячая собака"'
+          }
+        ]
+      },
+      'moscow-cultural': {
+        id: 1,
+        name: "Культурная Москва",
+        city: "Москва",
+        places: [
+          {
+            id: '1',
+            number_day: 1,
+            route_id: 1,
+            order: 1,
+            coordinates: '55.753931, 37.620795',
+            name: 'Красная площадь',
+            description: 'Сердце Москвы и главная достопримечательность России. Здесь вы увидите Кремль, собор Василия Блаженного и Мавзолей Ленина. Идеальное место для начала знакомства с городом.',
+            time: '10:00 - 12:00',
+            address: 'Россия, Москва, Красная площадь'
+          },
+          {
+            id: '2',
+            number_day: 1,
+            route_id: 1,
+            order: 2,
+            coordinates: '55.752121, 37.617635',
+            name: 'ГУМ',
+            description: 'Исторический универсальный магазин с роскошной архитектурой и лучшими бутиками. Здесь можно сделать покупки и попробовать традиционные русские деликатесы.',
+            time: '12:30 - 14:00',
+            address: 'Россия, Москва, ГУМ'
+          },
+          {
+            id: '3',
+            number_day: 2,
+            route_id: 1,
+            order: 1,
+            coordinates: '55.744511, 37.610989',
+            name: 'Третьяковская галерея',
+            description: 'Один из крупнейших музеев русского изобразительного искусства. Здесь вы найдете шедевры от икон до авангарда. Обязательное место для посещения любителями искусства.',
+            time: '11:00 - 14:00',
+            address: 'Россия, Москва, Третьяковская галерея'
+          }
+        ]
+      },
+      'adventure-mountains': {
+        id: 3,
+        name: "Альпийское приключение",
+        city: "Швейцария",
+        places: [
+          {
+            id: '1',
+            number_day: 1,
+            route_id: 3,
+            order: 1,
+            coordinates: '46.8182, 8.2275',
+            name: 'Базовый лагерь в горах',
+            description: 'Отправная точка для горных приключений. Здесь вы получите необходимое снаряжение и инструктаж перед восхождением.',
+            time: '09:00 - 10:00',
+            address: 'Швейцария, Альпы, Базовый лагерь'
+          },
+          {
+            id: '2',
+            number_day: 1,
+            route_id: 3,
+            order: 2,
+            coordinates: '46.5197, 8.7892',
+            name: 'Альпийская тропа',
+            description: 'Сложный пеший маршрут с потрясающими видами на альпийские вершины. Требует хорошей физической подготовки.',
+            time: '10:30 - 16:00',
+            address: 'Швейцария, Альпы, Альпийская тропа'
+          }
+        ]
+      }
     };
 
-    return routes[prefs.travelStyle] || routes.cultural;
+    // Select route based on city and interests
+    if (isPetersburg && hasCulture) {
+      return mockRoutes['mystic-petersburg'];
+    } else if (isMoscow && hasCulture) {
+      return mockRoutes['moscow-cultural'];
+    } else {
+      return mockRoutes['adventure-mountains'];
+    }
   };
 
   if (view === 'main') {
@@ -120,16 +255,16 @@ export default function App() {
       <div className={`w-full md:w-1/2 bg-white overflow-y-auto ${activeTab === 'content' ? 'block' : 'hidden md:block'
         }`}>
         {view === 'questionnaire' ? (
-          <Questionnaire city={city} onComplete={handleQuestionnaireComplete} />
+          <Questionnaire city={city} routeName={routeName} onComplete={handleQuestionnaireComplete} />
         ) : (
-          preferences && <RouteInfo preferences={preferences} routePoints={routePoints} />
+          preferences && routeData && <RouteInfo preferences={preferences} routeData={routeData} />
         )}
       </div>
 
       {/* Right Panel - Map */}
       <div className={`w-full md:w-1/2 bg-gray-100 ${activeTab === 'map' ? 'block' : 'hidden md:block'
         } h-[calc(100vh-57px)] md:h-screen`}>
-        <TravelMap routePoints={routePoints} />
+        <TravelMap routePoints={routeData?.places || []} />
       </div>
     </div>
   );

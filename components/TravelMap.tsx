@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { RoutePoint } from '../App';
 import { MapPin } from 'lucide-react';
 
+// Declare Yandex Maps types globally
+declare global {
+  interface Window {
+    ymaps: any;
+  }
+}
+
 interface TravelMapProps {
   routePoints: RoutePoint[];
 }
@@ -9,52 +16,137 @@ interface TravelMapProps {
 export function TravelMap({ routePoints }: TravelMapProps) {
   const [hoveredPoint, setHoveredPoint] = useState<string | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<string | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<ymaps.Map | null>(null);
+  const routeObjects = useRef<ymaps.GeoObject[]>([]);
 
-  // Convert lat/lng to SVG coordinates
-  const latLngToPoint = (lat: number, lng: number) => {
-    // Simple mercator projection approximation
-    // Adjust these bounds based on your typical route area
-    const minLat = 42;
-    const maxLat = 50;
-    const minLng = 0;
-    const maxLng = 12;
+  useEffect(() => {
+    // Load Yandex Maps API script
+    const loadYandexMaps = () => {
+      if (window.ymaps) {
+        initMap();
+        return;
+      }
 
-    const x = ((lng - minLng) / (maxLng - minLng)) * 100;
-    const y = ((maxLat - lat) / (maxLat - minLat)) * 100;
+      const script = document.createElement('script');
+      script.src = 'https://api-maps.yandex.ru/2.1/?apikey=8dd7f097-6399-475c-bb7f-1139673cf402&lang=ru_RU';
+      script.async = true;
+      script.onload = initMap;
+      document.head.appendChild(script);
+    };
 
-    return { x, y };
-  };
+    const initMap = () => {
+      if (!mapRef.current || !window.ymaps) return;
 
-  // Calculate path for the route
-  const getRoutePath = () => {
-    if (routePoints.length < 2) return '';
+      // Initialize Yandex Map
+      window.ymaps.ready(() => {
+        // Clear previous map instance if exists
+        if (mapInstance.current) {
+          mapInstance.current.destroy();
+        }
 
-    const points = routePoints.map(point => latLngToPoint(point.lat, point.lng));
-    let path = `M ${points[0].x} ${points[0].y}`;
+        // Create new map centered on the first point or default location
+        const center = routePoints.length > 0
+          ? routePoints[0].coordinates.split(',').map(Number) as [number, number]
+          : [55.751244, 37.618423]; // Default to Moscow
 
-    for (let i = 1; i < points.length; i++) {
-      path += ` L ${points[i].x} ${points[i].y}`;
-    }
+        mapInstance.current = new window.ymaps.Map(mapRef.current, {
+          center: center,
+          zoom: routePoints.length > 0 ? 10 : 12,
+          controls: ['zoomControl']
+        });
 
-    return path;
-  };
+        // Add route points to map
+        updateRoutePoints();
+      });
+    };
+
+    const updateRoutePoints = () => {
+      if (!mapInstance.current || !window.ymaps) return;
+
+      // Clear previous route objects
+      routeObjects.current.forEach(obj => {
+        mapInstance.current.geoObjects.remove(obj);
+      });
+      routeObjects.current = [];
+
+      if (routePoints.length === 0) return;
+
+      // Create placemarks for each point
+      routePoints.forEach((point, index) => {
+        const [lat, lng] = point.coordinates.split(',').map(Number);
+        const placemark = new window.ymaps.Placemark(
+          [lat, lng],
+          {
+            iconContent: (index + 1).toString(),
+            hintContent: point.name
+          },
+          {
+            preset: 'islands#blueStretchyIcon',
+            iconColor: '#2563eb'
+          }
+        );
+
+        // Add click and hover events
+        placemark.events.add('click', () => {
+          setSelectedPoint(selectedPoint === point.id ? null : point.id);
+        });
+
+        placemark.events.add('mouseenter', () => {
+          setHoveredPoint(point.id);
+        });
+
+        placemark.events.add('mouseleave', () => {
+          setHoveredPoint(null);
+        });
+
+        mapInstance.current.geoObjects.add(placemark);
+        routeObjects.current.push(placemark);
+      });
+
+      // Create route line if there are multiple points
+      if (routePoints.length > 1) {
+        const routeCoordinates = routePoints.map(point => {
+          const [lat, lng] = point.coordinates.split(',').map(Number);
+          return [lat, lng];
+        });
+
+        const routeLine = new window.ymaps.Polyline(
+          routeCoordinates,
+          {},
+          {
+            strokeColor: '#3b82f6',
+            strokeWidth: 4,
+            strokeOpacity: 0.8
+          }
+        );
+
+        mapInstance.current.geoObjects.add(routeLine);
+        routeObjects.current.push(routeLine);
+
+        // Fit map to show all points
+        mapInstance.current.setBounds(
+          mapInstance.current.geoObjects.getBounds(),
+          { checkZoomRange: true }
+        );
+      }
+    };
+
+    loadYandexMaps();
+
+    return () => {
+      // Cleanup
+      if (mapInstance.current) {
+        mapInstance.current.destroy();
+        mapInstance.current = null;
+      }
+    };
+  }, [routePoints]);
 
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-blue-50 via-green-50 to-blue-100">
-      {/* Grid overlay for map feel */}
-      <div className="absolute inset-0 opacity-20">
-        <svg className="w-full h-full">
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#cbd5e1" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
-
+    <div className="relative w-full h-full">
       {routePoints.length === 0 ? (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
           <div className="text-center">
             <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center mx-auto mb-4">
               <MapPin className="w-8 h-8 text-gray-400" />
@@ -63,130 +155,53 @@ export function TravelMap({ routePoints }: TravelMapProps) {
           </div>
         </div>
       ) : (
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-          {/* Route path */}
-          {routePoints.length > 1 && (
-            <>
-              {/* Animated dashed line */}
-              <path
-                d={getRoutePath()}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="0.3"
-                strokeDasharray="1, 1"
-                strokeLinecap="round"
-                opacity="0.6"
-              >
-                <animate
-                  attributeName="stroke-dashoffset"
-                  from="0"
-                  to="2"
-                  dur="1s"
-                  repeatCount="indefinite"
-                />
-              </path>
-              {/* Solid shadow line */}
-              <path
-                d={getRoutePath()}
-                fill="none"
-                stroke="#1e40af"
-                strokeWidth="0.15"
-                opacity="0.3"
-              />
-            </>
-          )}
-
-          {/* Route points */}
-          {routePoints.map((point, index) => {
-            const { x, y } = latLngToPoint(point.lat, point.lng);
-            const isHovered = hoveredPoint === point.id;
-            const isSelected = selectedPoint === point.id;
-
-            return (
-              <g
-                key={point.id}
-                transform={`translate(${x}, ${y})`}
-                onMouseEnter={() => setHoveredPoint(point.id)}
-                onMouseLeave={() => setHoveredPoint(null)}
-                onClick={() => setSelectedPoint(isSelected ? null : point.id)}
-                className="cursor-pointer"
-              >
-                {/* Pulse animation for hovered point */}
-                {isHovered && (
-                  <circle
-                    r="2.5"
-                    fill="#3b82f6"
-                    opacity="0.4"
-                  >
-                    <animate
-                      attributeName="r"
-                      from="1.5"
-                      to="3"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                    <animate
-                      attributeName="opacity"
-                      from="0.6"
-                      to="0"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                  </circle>
-                )}
-
-                {/* Marker circle */}
-                <circle
-                  r="1.5"
-                  fill="white"
-                  stroke="#2563eb"
-                  strokeWidth="0.3"
-                  className="transition-all"
-                  style={{
-                    transform: isHovered ? 'scale(1.2)' : 'scale(1)',
-                    transformOrigin: 'center'
-                  }}
-                />
-
-                {/* Number */}
-                <text
-                  textAnchor="middle"
-                  dy="0.4"
-                  fontSize="1.2"
-                  fontWeight="bold"
-                  fill="#2563eb"
-                  pointerEvents="none"
-                >
-                  {index + 1}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+        <div ref={mapRef} className="w-full h-full" />
       )}
 
       {/* Info cards for points */}
       {routePoints.map((point) => {
-        const { x, y } = latLngToPoint(point.lat, point.lng);
-        const isVisible = hoveredPoint === point.id || selectedPoint === point.id;
+        if (!mapInstance.current) return null;
 
+        const isVisible = hoveredPoint === point.id || selectedPoint === point.id;
         if (!isVisible) return null;
+
+      // Get pixel coordinates for the point
+        const [lat, lng] = point.coordinates.split(',').map(Number);
+        const pixelCoords = mapInstance.current?.options.get('projection').toGlobalPixels(
+          [lat, lng],
+          mapInstance.current?.getZoom()
+        ) || [0, 0];
+
+        // Calculate position to prevent overflow
+        const cardWidth = 250;
+        const cardHeight = 150;
+        const mapContainer = mapRef.current?.getBoundingClientRect();
+
+        let left = pixelCoords[0];
+        let top = pixelCoords[1] - cardHeight - 20; // Position above the point
+
+        // Adjust position to stay within map bounds
+        if (mapContainer) {
+          left = Math.max(10, Math.min(left, mapContainer.width - cardWidth - 10));
+          top = Math.max(10, Math.min(top, mapContainer.height - cardHeight - 10));
+        }
 
         return (
           <div
             key={`info-${point.id}`}
-            className="absolute bg-white rounded-lg shadow-xl p-4 pointer-events-none z-10 transform -translate-x-1/2 -translate-y-full"
+            className="absolute bg-white rounded-lg shadow-xl p-4 pointer-events-none z-10 overflow-hidden"
             style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              marginTop: '-16px',
+              left: `${left}px`,
+              top: `${top}px`,
               minWidth: '200px',
-              maxWidth: '250px'
+              maxWidth: '250px',
+              maxHeight: '200px',
+              overflowY: 'auto'
             }}
           >
-            <div className="mb-2">{point.name}</div>
-            <p className="text-gray-600 mb-2">{point.description}</p>
-            <p className="text-gray-500">Длительность: {point.duration}</p>
+            <div className="mb-2 font-medium">{point.name}</div>
+            <p className="text-gray-600 mb-2 text-sm">{point.description}</p>
+            <p className="text-gray-500 text-xs">Время: {point.time}</p>
             <div
               className="absolute w-3 h-3 bg-white transform rotate-45"
               style={{
@@ -201,7 +216,7 @@ export function TravelMap({ routePoints }: TravelMapProps) {
 
       {/* Legend */}
       {routePoints.length > 0 && (
-        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white rounded-lg shadow-lg p-3 md:p-4">
+        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white rounded-lg shadow-lg p-3 md:p-4 z-20">
           <div className="mb-2 md:mb-3">Обзор маршрута</div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">

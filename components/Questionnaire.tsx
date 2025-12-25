@@ -1,62 +1,100 @@
 import { useState } from 'react';
 import { TravelPreferences } from '../App';
-import { Compass, DollarSign, Calendar, Heart, MapPin } from 'lucide-react';
+import { Compass, DollarSign, Calendar, Heart, MapPin, Clock, Footprints, Car, Plus, Minus } from 'lucide-react';
 
 interface QuestionnaireProps {
   city: string;
+  routeName: string;
   onComplete: (preferences: TravelPreferences) => void;
 }
 
-export function Questionnaire({ city, onComplete }: QuestionnaireProps) {
+export function Questionnaire({ city, routeName, onComplete }: QuestionnaireProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [travelStyle, setTravelStyle] = useState('');
-  const [budget, setBudget] = useState('');
-  const [duration, setDuration] = useState('');
+  const [pace, setPace] = useState('');
+  const [days, setDays] = useState(1);
+  const [times, setTimes] = useState<string[]>(['10:00 - 18:00']);
   const [interests, setInterests] = useState<string[]>([]);
+  const [movementFormat, setMovementFormat] = useState('');
+
+  // Expanded interests options organized in categories
+  const interestCategories = [
+    {
+      category: 'Природа и активный отдых',
+      options: [
+        { value: 'nature', label: 'Природные достопримечательности' },
+        { value: 'hiking', label: 'Пешие прогулки' },
+        { value: 'adventure', label: 'Экстремальные виды спорта' },
+        { value: 'parks', label: 'Парки и сады' },
+        { value: 'beaches', label: 'Пляжи' },
+        { value: 'mountains', label: 'Горы' }
+      ]
+    },
+    {
+      category: 'Культура и история',
+      options: [
+        { value: 'history', label: 'Исторические места' },
+        { value: 'architecture', label: 'Архитектура' },
+        { value: 'museums', label: 'Музеи' },
+        { value: 'art', label: 'Искусство и галереи' },
+        { value: 'religious', label: 'Религиозные места' },
+        { value: 'cultural', label: 'Культурные мероприятия' }
+      ]
+    },
+    {
+      category: 'Еда и развлечения',
+      options: [
+        { value: 'food', label: 'Местная кухня' },
+        { value: 'restaurants', label: 'Рестораны' },
+        { value: 'cafes', label: 'Кафе' },
+        { value: 'nightlife', label: 'Ночная жизнь' },
+        { value: 'shopping', label: 'Шопинг' },
+        { value: 'markets', label: 'Местные рынки' }
+      ]
+    },
+    {
+      category: 'Отдых и велнес',
+      options: [
+        { value: 'relaxation', label: 'Спа и велнес' },
+        { value: 'spa', label: 'Спа-процедуры' },
+        { value: 'yoga', label: 'Йога и медитация' },
+        { value: 'luxury', label: 'Роскошный отдых' },
+        { value: 'hotels', label: 'Отели' },
+        { value: 'resorts', label: 'Курорты' }
+      ]
+    }
+  ];
 
   const questions = [
+    {
+      id: 'pace',
+      title: 'Выберите темп вашего маршрута',
+      icon: Compass,
+      options: [
+        { value: 'moderate', label: 'Умеренный', description: 'Спокойный темп с временем на отдых' },
+        { value: 'intensive', label: 'Интенсивный', description: 'Максимум достопримечательностей за день' }
+      ]
+    },
+    {
+      id: 'times',
+      title: 'Выберите время для экскурсий',
+      icon: Clock,
+      type: 'time-slots'
+    },
     {
       id: 'interests',
       title: 'Каковы ваши интересы?',
       icon: Heart,
-      multiple: true,
-      options: [
-        { value: 'food', label: 'Еда и кухня', description: 'Местные рестораны, кулинарные мастер-классы' },
-        { value: 'nature', label: 'Природа и дикая природа', description: 'Парки, пешие прогулки, наблюдение за животными' },
-        { value: 'history', label: 'История и архитектура', description: 'Исторические места, памятники' },
-        { value: 'shopping', label: 'Шопинг и рынки', description: 'Местные рынки, бутики' },
-        { value: 'nightlife', label: 'Ночная жизнь и развлечения', description: 'Бары, клубы, шоу' },
-        { value: 'photography', label: 'Фотография', description: 'Живописные виды, фотовозможности' }
-      ]
+      type: 'multi-column',
+      multiple: true
     },
     {
-      id: 'travelStyle',
-      title: 'Какой у вас стиль путешествия?',
-      icon: Compass,
+      id: 'movement',
+      title: 'Как вы планируете передвигаться?',
+      icon: Footprints,
       options: [
-        { value: 'adventure', label: 'Приключения и исследования', description: 'Походы, активный отдых, экстрим' },
-        { value: 'relaxation', label: 'Отдых и велнес', description: 'Пляжи, спа, спокойный отдых' },
-        { value: 'cultural', label: 'Культура и история', description: 'Музеи, достопримечательности, местная культура' }
-      ]
-    },
-    {
-      id: 'budget',
-      title: 'Какой у вас бюджет?',
-      icon: DollarSign,
-      options: [
-        { value: 'budget', label: 'Эконом', description: 'До $1,000' },
-        { value: 'moderate', label: 'Средний', description: '$1,000 - $3,000' },
-        { value: 'luxury', label: 'Премиум', description: 'От $3,000' }
-      ]
-    },
-    {
-      id: 'duration',
-      title: 'Как долго длится ваша поездка?',
-      icon: Calendar,
-      options: [
-        { value: 'short', label: 'Выходные', description: '2-3 дня' },
-        { value: 'week', label: 'Одна неделя', description: '5-7 дней' },
-        { value: 'extended', label: 'Длительная поездка', description: '10+ дней' }
+        { value: 'walking', label: 'Пешком', description: 'Пешие прогулки между достопримечательностями' },
+        { value: 'taxi', label: 'Такси', description: 'Быстрое передвижение на такси' },
+        { value: 'mixed', label: 'Смешанный', description: 'Комбинация пеших прогулок и транспорта' }
       ]
     }
   ];
@@ -64,32 +102,58 @@ export function Questionnaire({ city, onComplete }: QuestionnaireProps) {
   const currentQuestion = questions[currentStep];
 
   const handleOptionSelect = (value: string) => {
-    if (currentQuestion.multiple) {
-      setInterests(prev =>
-        prev.includes(value)
-          ? prev.filter(i => i !== value)
-          : [...prev, value]
-      );
-    } else {
-      switch (currentQuestion.id) {
-        case 'travelStyle':
-          setTravelStyle(value);
-          break;
-        case 'budget':
-          setBudget(value);
-          break;
-        case 'duration':
-          setDuration(value);
-          break;
-      }
+    switch (currentQuestion.id) {
+      case 'pace':
+        setPace(value);
+        break;
+      case 'movement':
+        setMovementFormat(value);
+        break;
     }
+  };
+
+  const handleInterestSelect = (value: string) => {
+    setInterests(prev =>
+      prev.includes(value)
+        ? prev.filter(i => i !== value)
+        : [...prev, value]
+    );
+  };
+
+  const handleAddTimeSlot = () => {
+    setTimes([...times, '10:00 - 18:00']);
+  };
+
+  const handleRemoveTimeSlot = (index: number) => {
+    if (times.length > 1) {
+      const newTimes = [...times];
+      newTimes.splice(index, 1);
+      setTimes(newTimes);
+    }
+  };
+
+  const handleTimeChange = (index: number, field: 'start' | 'end', value: string) => {
+    const newTimes = [...times];
+    const [start, end] = newTimes[index].split(' - ');
+    newTimes[index] = field === 'start' ? `${value} - ${end}` : `${start} - ${value}`;
+    setTimes(newTimes);
   };
 
   const handleNext = () => {
     if (currentStep < questions.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete({ travelStyle, budget, duration, interests });
+      // Prepare the final preferences object
+      const finalPreferences: TravelPreferences = {
+        city,
+        name_of_route: routeName || 'Мой маршрут', // Use routeName from MainPage
+        pace_of_route: pace,
+        quantity_of_days: times.length, // Set based on time slots
+        times,
+        interests,
+        format_of_movement: movementFormat
+      };
+      onComplete(finalPreferences);
     }
   };
 
@@ -101,14 +165,16 @@ export function Questionnaire({ city, onComplete }: QuestionnaireProps) {
 
   const isStepValid = () => {
     switch (currentQuestion.id) {
-      case 'travelStyle':
-        return travelStyle !== '';
-      case 'budget':
-        return budget !== '';
-      case 'duration':
-        return duration !== '';
+      case 'pace':
+        return pace !== '';
+      case 'days':
+        return days > 0;
+      case 'times':
+        return times.length > 0 && times.every(time => time.includes(' - '));
       case 'interests':
         return interests.length > 0;
+      case 'movement':
+        return movementFormat !== '';
       default:
         return false;
     }
@@ -150,40 +216,132 @@ export function Questionnaire({ city, onComplete }: QuestionnaireProps) {
           <h2>{currentQuestion.title}</h2>
         </div>
 
-        <div className="space-y-3 md:space-y-4">
-          {currentQuestion.options.map((option) => {
-            const isSelected = currentQuestion.multiple
-              ? interests.includes(option.value)
-              : (currentQuestion.id === 'travelStyle' && travelStyle === option.value) ||
-              (currentQuestion.id === 'budget' && budget === option.value) ||
-              (currentQuestion.id === 'duration' && duration === option.value);
-
-            return (
+        {/* Different question types */}
+        {currentQuestion.id === 'days' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
               <button
-                key={option.value}
-                onClick={() => handleOptionSelect(option.value)}
-                className={`w-full p-4 md:p-6 rounded-xl border-2 transition-all text-left ${isSelected
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
+                onClick={() => setDays(Math.max(1, days - 1))}
+                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50"
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="mb-1">{option.label}</div>
-                    <p className="text-gray-600">{option.description}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
+                <Minus className="w-5 h-5" />
               </button>
-            );
-          })}
-        </div>
+              <span className="text-2xl font-semibold">{days}</span>
+              <button
+                onClick={() => setDays(days + 1)}
+                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-600">Выберите количество дней вашего путешествия</p>
+          </div>
+        )}
+
+        {currentQuestion.id === 'times' && (
+          <div className="space-y-4">
+            {times.map((time, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <div className="font-medium">День {index + 1}:</div>
+                <div className="flex gap-2">
+                  <input
+                    type="time"
+                    value={time.split(' - ')[0]}
+                    onChange={(e) => handleTimeChange(index, 'start', e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-lg"
+                  />
+                  <span>-</span>
+                  <input
+                    type="time"
+                    value={time.split(' - ')[1]}
+                    onChange={(e) => handleTimeChange(index, 'end', e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-lg"
+                  />
+                </div>
+                {times.length > 1 && (
+                  <button
+                    onClick={() => handleRemoveTimeSlot(index)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={handleAddTimeSlot}
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+            >
+              <Plus className="w-5 h-5" />
+              Добавить день
+            </button>
+          </div>
+        )}
+
+        {currentQuestion.id === 'interests' && (
+          <div className="space-y-6">
+            {interestCategories.map((category, catIndex) => (
+              <div key={catIndex}>
+                <h3 className="font-medium mb-3 text-gray-800">{category.category}</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {category.options.map((option) => {
+                    const isSelected = interests.includes(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        onClick={() => handleInterestSelect(option.value)}
+                        className={`p-3 rounded-lg border transition-all text-sm ${isSelected
+                          ? 'border-blue-600 bg-blue-50 text-blue-800'
+                          : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
+                          }`}
+                      >
+                        {option.label}
+                        {isSelected && (
+                          <span className="ml-1">✓</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {['pace', 'movement'].includes(currentQuestion.id) && (
+          <div className="space-y-3 md:space-y-4">
+            {currentQuestion.options?.map((option) => {
+              const isSelected =
+                (currentQuestion.id === 'pace' && pace === option.value) ||
+                (currentQuestion.id === 'movement' && movementFormat === option.value);
+
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleOptionSelect(option.value)}
+                  className={`w-full p-4 md:p-6 rounded-xl border-2 transition-all text-left ${isSelected
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="mb-1">{option.label}</div>
+                      <p className="text-gray-600">{option.description}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
