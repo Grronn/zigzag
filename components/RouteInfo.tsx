@@ -1,4 +1,4 @@
-import { TravelPreferences, RoutePoint, RouteData } from '../App';
+import { TravelPreferences, RoutePoint, RouteData, RouteDay } from '../App';
 import { MapPin, Clock, DollarSign, Compass, Calendar } from 'lucide-react';
 
 interface RouteInfoProps {
@@ -8,9 +8,8 @@ interface RouteInfoProps {
 
 export function RouteInfo({ preferences, routeData }: RouteInfoProps) {
   const getTotalDuration = () => {
-    // Count unique days from route points
-    const uniqueDays = new Set(routeData.places.map(point => point.number_day));
-    return uniqueDays.size;
+    // Count days from route days
+    return routeData.days.length;
   };
 
   const getPaceLabel = (pace: string) => {
@@ -63,7 +62,18 @@ export function RouteInfo({ preferences, routeData }: RouteInfoProps) {
   return (
     <div className="min-h-screen p-6 md:p-12">
       <div className="mb-8 md:mb-12">
-        <h1 className="mb-2">Ваш маршрут: {routeData.name}</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="mr-4">Ваш маршрут: {routeData.name}</h1>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="w-8 h-8 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center flex-shrink-0"
+            title="Вернуться к созданию маршрута"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+        </div>
         <p className="text-gray-600">Мы создали персональный маршрут на основе ваших предпочтений</p>
       </div>
 
@@ -74,7 +84,7 @@ export function RouteInfo({ preferences, routeData }: RouteInfoProps) {
             <Compass className="w-5 h-5 text-blue-600" />
             <p className="text-blue-900">Темп маршрута</p>
           </div>
-          <p className="text-blue-900">{getPaceLabel(preferences.pace_of_route || '')}</p>
+          <p className="text-blue-900">{getPaceLabel(preferences.pace || '')}</p>
         </div>
 
         <div className="p-4 md:p-6 rounded-xl bg-green-50 border-2 border-green-100">
@@ -102,29 +112,47 @@ export function RouteInfo({ preferences, routeData }: RouteInfoProps) {
         </div>
       </div>
 
-      {/* Route Points */}
+      {/* Route Points by Day */}
       <div className="mb-8">
-        <h2 className="mb-4 md:mb-6">Ваш маршрут</h2>
-        <div className="space-y-4">
-          {routeData.places.map((point, index) => (
-            <div key={point.id} className="relative">
-              {/* Connector Line */}
-              {index < routeData.places.length - 1 && (
-                <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gray-200" style={{ height: 'calc(100% + 1rem)' }} />
-              )}
+        <h1 className="mb-4 md:mb-6 text-lg md:text-xl font-semibold">Ваш маршрут</h1>
+        <div className="space-y-6">
+          {routeData.days.map((day, dayIndex) => (
+            <div key={`day-${day.day_number}`} className="space-y-4">
+              {/* Day Header */}
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h3 className="font-semibold text-blue-900">День {day.day_number}</h3>
+                <p className="text-blue-700">Время: {day.working_time}</p>
+              </div>
 
-              <div className="flex gap-4">
-                <div className="relative z-10 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
-                  {index + 1}
-                </div>
-                <div className="flex-1 pb-8">
-                  <div className="mb-2">{point.name}</div>
-                  <p className="text-gray-600 mb-3">{point.description}</p>
-                  <div className="flex items-center gap-2 text-gray-500">
-                    <Clock className="w-4 h-4" />
-                    <p>{point.time}</p>
-                  </div>
-                </div>
+              {/* Places for this day */}
+              <div className="space-y-4">
+                {day.places.map((point, pointIndex) => {
+                  const isLastPointInDay = pointIndex === day.places.length - 1;
+                  const isLastPointOverall = dayIndex === routeData.days.length - 1 && isLastPointInDay;
+
+                  return (
+                    <div key={point.id} className="relative">
+                      {/* Connector Line - only within the same day */}
+                      {!isLastPointInDay && (
+                        <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gray-200" style={{ height: 'calc(100% + 1rem)' }} />
+                      )}
+
+                      <div className="flex gap-4">
+                        <div className="relative z-10 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
+                          {point.order}
+                        </div>
+                        <div className="flex-1 pb-8">
+                          <div className="mb-2">{point.name}</div>
+                          <p className="text-gray-600 mb-3">{point.description}</p>
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Clock className="w-4 h-4" />
+                            <p>{point.time}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -132,34 +160,21 @@ export function RouteInfo({ preferences, routeData }: RouteInfoProps) {
       </div>
 
       {/* Interests */}
-      {preferences.interests.length > 0 && (
+      {preferences.wishes.length > 0 && (
         <div>
           <h2 className="mb-4">Ваши интересы</h2>
           <div className="flex flex-wrap gap-2">
-            {preferences.interests.map((interest) => (
+            {preferences.wishes.map((wish) => (
               <span
-                key={interest}
+                key={wish}
                 className="px-4 py-2 rounded-full bg-gray-100 text-gray-700"
               >
-                {getInterestLabel(interest)}
+                {getInterestLabel(wish)}
               </span>
             ))}
           </div>
         </div>
       )}
-
-      {/* Time Slots */}
-      <div className="mt-8">
-        <h2 className="mb-4">Временные слоты</h2>
-        <div className="space-y-3">
-          {preferences.times.map((time, index) => (
-            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <span className="font-medium">День {index + 1}:</span>
-              <span>{time}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

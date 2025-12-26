@@ -1,40 +1,46 @@
 import { useState } from 'react';
 import { Questionnaire } from './components/Questionnaire';
-import { RouteInfo } from './components/RouteInfo';
-import { TravelMap } from './components/TravelMap';
 import { MainPage } from './components/MainPage';
 import { MapIcon, List, Loader2 } from 'lucide-react';
 
 export interface TravelPreferences {
   city: string;
   name_of_route: string;
-  pace_of_route?: string;
+  pace?: string;
   quantity_of_days: number;
   times: string[];
-  interests: string[];
+  wishes: string[];
   format_of_movement: string;
 }
 
 export interface RoutePoint {
-  id: string;
-  number_day: number;
+  id: number;
   route_id: number;
+  day_number: number;
   order: number;
-  coordinates: string;
   name: string;
   description: string;
-  time: string;
+  coordinates: string;
   address: string;
+  time: string;
+}
+
+export interface RouteDay {
+  day_number: number;
+  working_time: string;
+  places: RoutePoint[];
 }
 
 export interface RouteData {
   id: number;
   name: string;
   city: string;
-  places: RoutePoint[];
+  pace: string;
+  format_of_movement: string;
+  days: RouteDay[];
 }
 
-type ViewState = 'main' | 'questionnaire' | 'result';
+type ViewState = 'main' | 'questionnaire';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('main');
@@ -54,161 +60,138 @@ export default function App() {
   const handleQuestionnaireComplete = async (prefs: TravelPreferences) => {
     setIsSubmitting(true);
 
-    // Mock backend submission
-    // Sending { city, ...prefs } to backend...
+    // Simulate sending data to server
+    // This simulates the API call: POST /server/create-route
+    // In a real implementation, this would be:
+    // const response = await fetch('/server/create-route', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     city: prefs.city,
+    //     name_of_route: prefs.name_of_route,
+    //     pace: prefs.pace,
+    //     quantity_of_days: prefs.quantity_of_days,
+    //     times: prefs.times,
+    //     wishes: prefs.wishes,
+    //     format_of_movement: prefs.format_of_movement
+    //   })
+    // });
+    // const serverResponse = await response.json();
+
+    console.log('Sending to server:', {
+      city: prefs.city,
+      name_of_route: prefs.name_of_route,
+      pace: prefs.pace,
+      quantity_of_days: prefs.quantity_of_days,
+      times: prefs.times,
+      wishes: prefs.wishes,
+      format_of_movement: prefs.format_of_movement
+    });
+
+    // Simulate server processing time
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    setPreferences(prefs);
+    // Simulate server response with success flag and route ID
+    // The real server would return { success: true, routeId: number }
+    const mockServerResponse = {
+      success: true,
+      routeId: 1 // Using ID 1 for our new mock route
+    };
 
-    // Mock receiving success and ID, then generating route
-    const generatedRoute = generateRoute(prefs);
-    setRouteData(generatedRoute);
-
-    setIsSubmitting(false);
-    setView('result');
+    if (mockServerResponse.success) {
+      setIsSubmitting(false);
+      // Redirect to route page with the generated ID
+      window.location.href = `/route/${mockServerResponse.routeId}`;
+    } else {
+      setIsSubmitting(false);
+      // In a real implementation, we would show an error message
+      console.error('Failed to create route on server');
+    }
   };
 
   const generateRoute = (prefs: TravelPreferences): RouteData => {
-    // Mock server response data in the exact format from the backend
+    // Simplified to use only one mock route as per requirements
     // This simulates what we would receive from the backend API
 
-    // Determine route type based on city and interests
-    const isMoscow = prefs.city.toLowerCase().includes('moscow');
-    const isPetersburg = prefs.city.toLowerCase().includes('peterburg');
-    const hasCulture = prefs.interests.includes('history') || prefs.interests.includes('architecture') || prefs.interests.includes('museums');
-
-    // Mock route data in the exact format from the backend
-    const mockRoutes: Record<string, RouteData> = {
-      'mystic-petersburg': {
-        id: 2,
-        name: "Мистический Питер",
-        city: "Санкт-Петербург",
-        places: [
-          {
-            id: '1',
-            number_day: 1,
-            route_id: 2,
-            order: 1,
-            coordinates: '59.944365, 30.347517',
-            name: 'Дом Бака (Дворы)',
-            description: 'Величественный дом-колодец с открытыми галереями и стеклянным переходом, погружающий в атмосферу старого Петербурга. Идеальное начало мистического маршрута, где можно почувствовать дух доходных домов.',
-            time: '10:00 - 10:45',
-            address: 'Россия, Санкт-Питербург, Памятник коту Елисею и кошке Василисе, Дом Бака (Дворы)'
-          },
-          {
-            id: '2',
-            number_day: 1,
-            route_id: 2,
-            order: 2,
-            coordinates: '59.936647, 30.339665',
-            name: 'Памятник коту Елисею и кошке Василисе',
-            description: 'Забавные и милые памятники котам на карнизах домов, связанные с городскими легендами. Считается, что если бросить монетку и попасть, желание исполнится. Рядом можно найти уютное кафе для кофе-паузы.',
-            time: '11:15 - 12:00',
-            address: 'Россия, Санкт-Питербург, Памятник коту Елисею и кошке Василисе'
-          },
-          {
-            id: '3',
-            number_day: 1,
-            route_id: 2,
-            order: 3,
-            coordinates: '59.934283, 30.332266',
-            name: 'Книжный магазин "Все свободны"',
-            description: 'Уютный книжный магазин с атмосферой старого Петербурга. Здесь можно найти редкие издания и книги о городе. Идеальное место для любителей чтения и истории.',
-            time: '12:30 - 13:15',
-            address: 'Россия, Санкт-Питербург, Книжный магазин "Все свободны"'
-          },
-          {
-            id: '4',
-            number_day: 2,
-            route_id: 2,
-            order: 1,
-            coordinates: '59.945568, 30.337845',
-            name: 'Кафе "Бродячая собака"',
-            description: 'Легендарное кафе, где собирались поэты и художники Серебряного века. Сохранилась атмосфера начала 20 века. Отличное место для обеда и знакомства с культурой Петербурга.',
-            time: '11:00 - 12:30',
-            address: 'Россия, Санкт-Питербург, Кафе "Бродячая собака"'
-          }
-        ]
-      },
-      'moscow-cultural': {
-        id: 1,
-        name: "Культурная Москва",
-        city: "Москва",
-        places: [
-          {
-            id: '1',
-            number_day: 1,
-            route_id: 1,
-            order: 1,
-            coordinates: '55.753931, 37.620795',
-            name: 'Красная площадь',
-            description: 'Сердце Москвы и главная достопримечательность России. Здесь вы увидите Кремль, собор Василия Блаженного и Мавзолей Ленина. Идеальное место для начала знакомства с городом.',
-            time: '10:00 - 12:00',
-            address: 'Россия, Москва, Красная площадь'
-          },
-          {
-            id: '2',
-            number_day: 1,
-            route_id: 1,
-            order: 2,
-            coordinates: '55.752121, 37.617635',
-            name: 'ГУМ',
-            description: 'Исторический универсальный магазин с роскошной архитектурой и лучшими бутиками. Здесь можно сделать покупки и попробовать традиционные русские деликатесы.',
-            time: '12:30 - 14:00',
-            address: 'Россия, Москва, ГУМ'
-          },
-          {
-            id: '3',
-            number_day: 2,
-            route_id: 1,
-            order: 1,
-            coordinates: '55.744511, 37.610989',
-            name: 'Третьяковская галерея',
-            description: 'Один из крупнейших музеев русского изобразительного искусства. Здесь вы найдете шедевры от икон до авангарда. Обязательное место для посещения любителями искусства.',
-            time: '11:00 - 14:00',
-            address: 'Россия, Москва, Третьяковская галерея'
-          }
-        ]
-      },
-      'adventure-mountains': {
-        id: 3,
-        name: "Альпийское приключение",
-        city: "Швейцария",
-        places: [
-          {
-            id: '1',
-            number_day: 1,
-            route_id: 3,
-            order: 1,
-            coordinates: '46.8182, 8.2275',
-            name: 'Базовый лагерь в горах',
-            description: 'Отправная точка для горных приключений. Здесь вы получите необходимое снаряжение и инструктаж перед восхождением.',
-            time: '09:00 - 10:00',
-            address: 'Швейцария, Альпы, Базовый лагерь'
-          },
-          {
-            id: '2',
-            number_day: 1,
-            route_id: 3,
-            order: 2,
-            coordinates: '46.5197, 8.7892',
-            name: 'Альпийская тропа',
-            description: 'Сложный пеший маршрут с потрясающими видами на альпийские вершины. Требует хорошей физической подготовки.',
-            time: '10:30 - 16:00',
-            address: 'Швейцария, Альпы, Альпийская тропа'
-          }
-        ]
-      }
+    // Single mock route - "Гастро-тур и история" (Kazan)
+    return {
+      id: 1,
+      name: "Гастро-тур и история",
+      city: "Казань",
+      pace: "интенсивный",
+      format_of_movement: "такси",
+      days: [
+        {
+          day_number: 1,
+          working_time: "10:00 - 20:00",
+          places: [
+            {
+              id: 1,
+              route_id: 1,
+              day_number: 1,
+              order: 1,
+              name: "Казанский Кремль",
+              description: "Историческое сердце Казани, объект Всемирного наследия ЮНЕСКО. Посещение мечети Кул-Шариф, Благовещенского собора, башни Сююмбике и прогулка по территории.",
+              coordinates: "55.7997, 49.1118",
+              address: "Кремль, Казань",
+              time: "10:00 - 13:00"
+            },
+            {
+              id: 2,
+              route_id: 1,
+              day_number: 1,
+              order: 2,
+              name: "Обед в кафе \"Тюбетей\"",
+              description: "Первое гастрономическое знакомство с татарской кухней. Обязательно попробовать эчпочмаки и другие традиционные пирожки.",
+              coordinates: "55.7891, 49.1215",
+              address: "ул. Баумана, 29/11, Казань",
+              time: "13:00 - 14:00"
+            },
+            {
+              id: 3,
+              route_id: 1,
+              day_number: 1,
+              order: 3,
+              name: "Прогулка по улице Баумана",
+              description: "Главная пешеходная улица Казани. Исторические здания, фонтаны, сувенирные магазины и памятники (например, Коту Казанскому).",
+              coordinates: "55.7895, 49.1245",
+              address: "Улица Баумана, Казань",
+              time: "14:00 - 15:30"
+            }
+          ]
+        },
+        {
+          day_number: 2,
+          working_time: "09:00 - 15:00",
+          places: [
+            {
+              id: 4,
+              route_id: 1,
+              day_number: 2,
+              order: 1,
+              name: "Старо-Татарская слобода",
+              description: "Исторический район с деревянными домами, мечетями и атмосферой старой Казани. Посещение мечети Марджани.",
+              coordinates: "55.7850, 49.1200",
+              address: "ул. Каюма Насыри, 17, Казань (Мечеть Марджани)",
+              time: "09:00 - 10:30"
+            },
+            {
+              id: 5,
+              route_id: 1,
+              day_number: 2,
+              order: 2,
+              name: "Набережная озера Нижний Кабан",
+              description: "Прогулка по благоустроенной набережной одного из крупнейших озер Казани, наслаждаясь видами и городской атмосферой.",
+              coordinates: "55.7820, 49.1220",
+              address: "Набережная озера Нижний Кабан, Казань",
+              time: "10:30 - 11:30"
+            }
+          ]
+        }
+      ]
     };
-
-    // Select route based on city and interests
-    if (isPetersburg && hasCulture) {
-      return mockRoutes['mystic-petersburg'];
-    } else if (isMoscow && hasCulture) {
-      return mockRoutes['moscow-cultural'];
-    } else {
-      return mockRoutes['adventure-mountains'];
-    }
   };
 
   if (view === 'main') {
@@ -237,7 +220,7 @@ export default function App() {
             }`}
         >
           <List className="w-5 h-5" />
-          <span>{view === 'questionnaire' ? 'Анкета' : 'Маршрут'}</span>
+          <span>Анкета</span>
         </button>
         <button
           onClick={() => setActiveTab('map')}
@@ -251,20 +234,18 @@ export default function App() {
         </button>
       </div>
 
-      {/* Left Panel - Questionnaire or Route Info */}
+      {/* Left Panel - Questionnaire */}
       <div className={`w-full md:w-1/2 bg-white overflow-y-auto ${activeTab === 'content' ? 'block' : 'hidden md:block'
         }`}>
-        {view === 'questionnaire' ? (
-          <Questionnaire city={city} routeName={routeName} onComplete={handleQuestionnaireComplete} />
-        ) : (
-          preferences && routeData && <RouteInfo preferences={preferences} routeData={routeData} />
-        )}
+        <Questionnaire city={city} routeName={routeName} onComplete={handleQuestionnaireComplete} />
       </div>
 
-      {/* Right Panel - Map */}
+      {/* Right Panel - Map (empty for now, will show map when route is generated) */}
       <div className={`w-full md:w-1/2 bg-gray-100 ${activeTab === 'map' ? 'block' : 'hidden md:block'
         } h-[calc(100vh-57px)] md:h-screen`}>
-        <TravelMap routePoints={routeData?.places || []} />
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">Map will appear after route creation</p>
+        </div>
       </div>
     </div>
   );

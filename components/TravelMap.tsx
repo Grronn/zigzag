@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { RoutePoint } from '../App';
+import { RoutePoint, RouteDay } from '../App';
 import { MapPin } from 'lucide-react';
 
 // Declare Yandex Maps types globally
@@ -11,11 +11,12 @@ declare global {
 
 interface TravelMapProps {
   routePoints: RoutePoint[];
+  routeDays?: RouteDay[]; // Optional for backward compatibility
 }
 
 export function TravelMap({ routePoints }: TravelMapProps) {
-  const [hoveredPoint, setHoveredPoint] = useState<string | null>(null);
-  const [selectedPoint, setSelectedPoint] = useState<string | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<ymaps.Map | null>(null);
   const routeObjects = useRef<ymaps.GeoObject[]>([]);
@@ -72,59 +73,100 @@ export function TravelMap({ routePoints }: TravelMapProps) {
 
       if (routePoints.length === 0) return;
 
+      // Define colors for each day
+      const dayColors = [
+        '#3b82f6', // Blue
+        '#10b981', // Green
+        '#f59e0b', // Amber
+        '#ef4444', // Red
+        '#8b5cf6', // Purple
+        '#06b6d4', // Cyan
+      ];
+
+      // Group points by day
+      const pointsByDay: Record<number, RoutePoint[]> = {};
+      routePoints.forEach(point => {
+        if (!pointsByDay[point.day_number]) {
+          pointsByDay[point.day_number] = [];
+        }
+        pointsByDay[point.day_number].push(point);
+      });
+
       // Create placemarks for each point
       routePoints.forEach((point, index) => {
         const [lat, lng] = point.coordinates.split(',').map(Number);
+        const dayColor = dayColors[(point.day_number - 1) % dayColors.length];
+
         const placemark = new window.ymaps.Placemark(
           [lat, lng],
           {
-            iconContent: (index + 1).toString(),
-            hintContent: point.name
+            iconContent: point.order.toString(),
+            hintContent: `День ${point.day_number}: ${point.name}`,
+            balloonContentHeader: `<b>${point.name}</b>`,
+            balloonContentBody: `
+              <p>${point.description}</p>
+              <p><b>Время:</b> ${point.time}</p>
+              <p><b>День:</b> ${point.day_number}</p>
+              <p><b>Адрес:</b> ${point.address}</p>
+            `,
+            balloonContentFooter: 'Нажмите, чтобы закрыть'
           },
           {
-            preset: 'islands#blueStretchyIcon',
-            iconColor: '#2563eb'
+            preset: 'islands#circleStretchyIcon',
+            iconColor: dayColor,
+            hideIconOnBalloonOpen: false,
+            balloonOffset: [0, -40]
           }
         );
 
-        // Add click and hover events
+        // Add click event to open balloon
         placemark.events.add('click', () => {
-          setSelectedPoint(selectedPoint === point.id ? null : point.id);
-        });
+          if (mapInstance.current) {
+            // Close all other balloons first
+            mapInstance.current.geoObjects.each((geoObject: any) => {
+              if (geoObject instanceof window.ymaps.Placemark) {
+                geoObject.balloon.close();
+              }
+            });
 
-        placemark.events.add('mouseenter', () => {
-          setHoveredPoint(point.id);
-        });
-
-        placemark.events.add('mouseleave', () => {
-          setHoveredPoint(null);
+            // Open this placemark's balloon
+            placemark.balloon.open();
+          }
         });
 
         mapInstance.current.geoObjects.add(placemark);
         routeObjects.current.push(placemark);
       });
 
-      // Create route line if there are multiple points
-      if (routePoints.length > 1) {
-        const routeCoordinates = routePoints.map(point => {
-          const [lat, lng] = point.coordinates.split(',').map(Number);
-          return [lat, lng];
-        });
+      // Create route lines for each day with different colors
+      Object.keys(pointsByDay).forEach(dayNumberStr => {
+        const dayNumber = parseInt(dayNumberStr);
+        const dayPoints = pointsByDay[dayNumber];
+        const dayColor = dayColors[(dayNumber - 1) % dayColors.length];
 
-        const routeLine = new window.ymaps.Polyline(
-          routeCoordinates,
-          {},
-          {
-            strokeColor: '#3b82f6',
-            strokeWidth: 4,
-            strokeOpacity: 0.8
-          }
-        );
+        if (dayPoints.length > 1) {
+          const routeCoordinates = dayPoints.map(point => {
+            const [lat, lng] = point.coordinates.split(',').map(Number);
+            return [lat, lng];
+          });
 
-        mapInstance.current.geoObjects.add(routeLine);
-        routeObjects.current.push(routeLine);
+          const routeLine = new window.ymaps.Polyline(
+            routeCoordinates,
+            {},
+            {
+              strokeColor: dayColor,
+              strokeWidth: 4,
+              strokeOpacity: 0.8
+            }
+          );
 
-        // Fit map to show all points
+          mapInstance.current.geoObjects.add(routeLine);
+          routeObjects.current.push(routeLine);
+        }
+      });
+
+      // Fit map to show all points
+      if (routePoints.length > 0) {
         mapInstance.current.setBounds(
           mapInstance.current.geoObjects.getBounds(),
           { checkZoomRange: true }
@@ -158,77 +200,42 @@ export function TravelMap({ routePoints }: TravelMapProps) {
         <div ref={mapRef} className="w-full h-full" />
       )}
 
-      {/* Info cards for points */}
-      {routePoints.map((point) => {
-        if (!mapInstance.current) return null;
-
-        const isVisible = hoveredPoint === point.id || selectedPoint === point.id;
-        if (!isVisible) return null;
-
-      // Get pixel coordinates for the point
-        const [lat, lng] = point.coordinates.split(',').map(Number);
-        const pixelCoords = mapInstance.current?.options.get('projection').toGlobalPixels(
-          [lat, lng],
-          mapInstance.current?.getZoom()
-        ) || [0, 0];
-
-        // Calculate position to prevent overflow
-        const cardWidth = 250;
-        const cardHeight = 150;
-        const mapContainer = mapRef.current?.getBoundingClientRect();
-
-        let left = pixelCoords[0];
-        let top = pixelCoords[1] - cardHeight - 20; // Position above the point
-
-        // Adjust position to stay within map bounds
-        if (mapContainer) {
-          left = Math.max(10, Math.min(left, mapContainer.width - cardWidth - 10));
-          top = Math.max(10, Math.min(top, mapContainer.height - cardHeight - 10));
-        }
-
-        return (
-          <div
-            key={`info-${point.id}`}
-            className="absolute bg-white rounded-lg shadow-xl p-4 pointer-events-none z-10 overflow-hidden"
-            style={{
-              left: `${left}px`,
-              top: `${top}px`,
-              minWidth: '200px',
-              maxWidth: '250px',
-              maxHeight: '200px',
-              overflowY: 'auto'
-            }}
-          >
-            <div className="mb-2 font-medium">{point.name}</div>
-            <p className="text-gray-600 mb-2 text-sm">{point.description}</p>
-            <p className="text-gray-500 text-xs">Время: {point.time}</p>
-            <div
-              className="absolute w-3 h-3 bg-white transform rotate-45"
-              style={{
-                left: '50%',
-                bottom: '-6px',
-                marginLeft: '-6px'
-              }}
-            />
-          </div>
-        );
-      })}
+      {/* State variables kept for potential future use */}
 
       {/* Legend */}
       {routePoints.length > 0 && (
-        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white rounded-lg shadow-lg p-3 md:p-4 z-20">
-          <div className="mb-2 md:mb-3">Обзор маршрута</div>
+        <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 bg-white rounded-lg shadow-lg p-3 md:p-4 z-20">
+          
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center">
+              <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-white flex items-center justify-center">
                 <span className="text-white" style={{ fontSize: '8px' }}>1</span>
               </div>
-              <p className="text-gray-600">Остановки маршрута</p>
+              <p className="text-gray-600 text-sm">Остановки маршрута</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-0.5 bg-blue-600" style={{ backgroundImage: 'repeating-linear-gradient(to right, #3b82f6 0, #3b82f6 4px, transparent 4px, transparent 8px)' }} />
-              <p className="text-gray-600">Путь следования</p>
-            </div>
+
+            {/* Day routes legend */}
+            {Array.from(new Set(routePoints.map(p => p.day_number))).map((dayNumber, index) => {
+              const dayColors = [
+                '#3b82f6', // Blue
+                '#10b981', // Green
+                '#f59e0b', // Amber
+                '#ef4444', // Red
+                '#8b5cf6', // Purple
+                '#06b6d4', // Cyan
+              ];
+              const color = dayColors[(dayNumber - 1) % dayColors.length];
+
+              return (
+                <div key={`day-${dayNumber}`} className="flex items-center gap-2">
+                  <div className="w-8 h-0.5" style={{
+                    backgroundColor: color,
+                    backgroundImage: `repeating-linear-gradient(to right, ${color} 0, ${color} 4px, transparent 4px, transparent 8px)`
+                  }} />
+                  <p className="text-gray-600 text-sm">День {dayNumber} маршрут</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

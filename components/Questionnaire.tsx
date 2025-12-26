@@ -147,10 +147,10 @@ export function Questionnaire({ city, routeName, onComplete }: QuestionnaireProp
       const finalPreferences: TravelPreferences = {
         city,
         name_of_route: routeName || 'Мой маршрут', // Use routeName from MainPage
-        pace_of_route: pace,
+        pace: pace,
         quantity_of_days: times.length, // Set based on time slots
         times,
-        interests,
+        wishes: interests,
         format_of_movement: movementFormat
       };
       onComplete(finalPreferences);
